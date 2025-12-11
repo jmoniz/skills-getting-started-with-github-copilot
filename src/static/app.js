@@ -29,7 +29,10 @@ document.addEventListener("DOMContentLoaded", () => {
             <strong>Participants (${details.participants.length}):</strong>
             <ul class="participants-list">
               ${details.participants.length > 0 
-                ? details.participants.map(email => `<li>${email}</li>`).join('')
+                ? details.participants.map(email => `<li data-email="${email}" data-activity="${name}">
+                    <span class="participant-email">${email}</span>
+                    <button class="delete-btn" aria-label="Delete participant">×</button>
+                  </li>`).join('')
                 : '<li class="no-participants">No participants yet</li>'}
             </ul>
           </div>
@@ -67,6 +70,9 @@ document.addEventListener("DOMContentLoaded", () => {
       const result = await response.json();
 
       if (response.ok) {
+        // Refresh activities to show updated list
+        await fetchActivities();
+        
         messageDiv.textContent = result.message;
         messageDiv.className = "success";
         signupForm.reset();
@@ -86,6 +92,52 @@ document.addEventListener("DOMContentLoaded", () => {
       messageDiv.className = "error";
       messageDiv.classList.remove("hidden");
       console.error("Error signing up:", error);
+    }
+  });
+
+  // Handle delete participant
+  activitiesList.addEventListener("click", async (event) => {
+    if (event.target.classList.contains("delete-btn")) {
+      const listItem = event.target.closest("li");
+      const email = listItem.dataset.email;
+      const activity = listItem.dataset.activity;
+
+      if (!confirm(`¿Desea dar de baja a ${email} de ${activity}?`)) {
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          `/activities/${encodeURIComponent(activity)}/unregister?email=${encodeURIComponent(email)}`,
+          {
+            method: "DELETE",
+          }
+        );
+
+        const result = await response.json();
+
+        if (response.ok) {
+          // Refresh activities to show updated list
+          await fetchActivities();
+          
+          messageDiv.textContent = result.message;
+          messageDiv.className = "success";
+          messageDiv.classList.remove("hidden");
+          
+          setTimeout(() => {
+            messageDiv.classList.add("hidden");
+          }, 5000);
+        } else {
+          messageDiv.textContent = result.detail || "An error occurred";
+          messageDiv.className = "error";
+          messageDiv.classList.remove("hidden");
+        }
+      } catch (error) {
+        messageDiv.textContent = "Failed to unregister participant. Please try again.";
+        messageDiv.className = "error";
+        messageDiv.classList.remove("hidden");
+        console.error("Error unregistering participant:", error);
+      }
     }
   });
 
